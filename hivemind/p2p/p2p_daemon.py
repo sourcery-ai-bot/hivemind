@@ -149,7 +149,9 @@ class P2P:
             initial_peers and use_ipfs
         ), "User-defined initial_peers and use_ipfs=True are incompatible, please choose one option"
 
-        if not all(arg is None for arg in [quic, use_relay_hop, use_relay_discovery]):
+        if any(
+            arg is not None for arg in [quic, use_relay_hop, use_relay_discovery]
+        ):
             warnings.warn(
                 "Parameters `quic`, `use_relay_hop`, and `use_relay_discovery` of hivemind.P2P "
                 "have no effect since libp2p 0.17.0 and will be removed in hivemind 1.2.0+",
@@ -162,8 +164,12 @@ class P2P:
             p2pd_path = p
 
         socket_uid = secrets.token_urlsafe(8)
-        self._daemon_listen_maddr = Multiaddr(cls._UNIX_SOCKET_PREFIX + f"p2pd-{socket_uid}.sock")
-        self._client_listen_maddr = Multiaddr(cls._UNIX_SOCKET_PREFIX + f"p2pclient-{socket_uid}.sock")
+        self._daemon_listen_maddr = Multiaddr(
+            f"{cls._UNIX_SOCKET_PREFIX}p2pd-{socket_uid}.sock"
+        )
+        self._client_listen_maddr = Multiaddr(
+            f"{cls._UNIX_SOCKET_PREFIX}p2pclient-{socket_uid}.sock"
+        )
         if announce_maddrs is not None:
             for addr in announce_maddrs:
                 addr = Multiaddr(addr)
@@ -305,7 +311,9 @@ class P2P:
 
         socket_uid = secrets.token_urlsafe(8)
         self._daemon_listen_maddr = daemon_listen_maddr
-        self._client_listen_maddr = Multiaddr(cls._UNIX_SOCKET_PREFIX + f"p2pclient-{socket_uid}.sock")
+        self._client_listen_maddr = Multiaddr(
+            f"{cls._UNIX_SOCKET_PREFIX}p2pclient-{socket_uid}.sock"
+        )
 
         self._client = await p2pclient.Client.create(self._daemon_listen_maddr, self._client_listen_maddr)
 
@@ -360,8 +368,7 @@ class P2P:
     async def receive_raw_data(reader: asyncio.StreamReader) -> bytes:
         header = await reader.readexactly(P2P.HEADER_LEN)
         content_length = int.from_bytes(header, P2P.BYTEORDER)
-        data = await reader.readexactly(content_length)
-        return data
+        return await reader.readexactly(content_length)
 
     TInputProtobuf = TypeVar("TInputProtobuf")
     TOutputProtobuf = TypeVar("TOutputProtobuf")
@@ -675,9 +682,7 @@ class P2P:
 
     @staticmethod
     def _convert_process_arg_type(val: Any) -> Any:
-        if isinstance(val, bool):
-            return int(val)
-        return val
+        return int(val) if isinstance(val, bool) else val
 
     @staticmethod
     def _maddrs_to_str(maddrs: List[Multiaddr]) -> str:

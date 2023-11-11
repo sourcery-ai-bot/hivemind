@@ -92,10 +92,13 @@ class GradScaler(TorchGradScaler):
 
     def update(self, new_scale: Optional[float] = None) -> bool:
         with self._lock:
-            total_infs = 0
-            for optimizer_state in self._per_optimizer_states.values():
-                total_infs += sum(v.item() for v in optimizer_state["found_inf_per_device"].values())
-
+            total_infs = sum(
+                sum(
+                    v.item()
+                    for v in optimizer_state["found_inf_per_device"].values()
+                )
+                for optimizer_state in self._per_optimizer_states.values()
+            )
             if self._is_ready_to_update or total_infs != 0:
                 # note: we update either during actual optimizer step or if we need to reduce scale due to NaN
                 super().update(new_scale)

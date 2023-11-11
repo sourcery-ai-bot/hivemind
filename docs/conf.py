@@ -245,4 +245,4 @@ def linkcode_resolve(domain, info):
         filename = info["module"].replace(".", "/") + ".py"
 
     relative_filename = filename[filename.rindex("hivemind") :]
-    return "https://github.com/learning-at-home/hivemind/blob/%s/%s" % (branch, relative_filename)
+    return f"https://github.com/learning-at-home/hivemind/blob/{branch}/{relative_filename}"

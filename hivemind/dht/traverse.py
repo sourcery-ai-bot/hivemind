@@ -51,7 +51,11 @@ async def simple_traverse_dht(
     upper_bound = -nearest_nodes[0][0]  # distance to farthest element that is still in beam
     was_interrupted = False  # will set to True if host triggered beam search to stop via get_neighbors
 
-    while (not was_interrupted) and len(unvisited_nodes) != 0 and unvisited_nodes[0][0] <= upper_bound:
+    while (
+        not was_interrupted
+        and unvisited_nodes
+        and unvisited_nodes[0][0] <= upper_bound
+    ):
         _, node_id = heapq.heappop(unvisited_nodes)  # note: this  --^ is the smallest element in heap (see heapq)
         neighbors, was_interrupted = await get_neighbors(node_id)
         neighbors = [node_id for node_id in neighbors if node_id not in visited_nodes]
@@ -161,7 +165,7 @@ async def traverse_dht(
     def finish_search(query):
         """Remove query from a list of targets"""
         unfinished_queries.remove(query)
-        if len(unfinished_queries) == 0:
+        if not unfinished_queries:
             search_finished_event.set()
         if found_callback:
             nearest_neighbors = [peer for _, peer in heapq.nlargest(beam_size, nearest_nodes[query])]
@@ -239,7 +243,7 @@ async def traverse_dht(
     try:
         # spawn all workers and wait for them to terminate; workers terminate after exhausting unfinished_queries
         await asyncio.wait(workers, return_when=asyncio.FIRST_COMPLETED)
-        assert len(unfinished_queries) == 0 and search_finished_event.is_set()
+        assert not unfinished_queries and search_finished_event.is_set()
 
         if await_all_tasks:
             await asyncio.gather(*pending_tasks)

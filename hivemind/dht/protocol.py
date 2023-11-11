@@ -399,9 +399,8 @@ class DHTProtocol(ServicerBase):
                 # ping one least-recently updated peer: if it won't respond, remove it from the table, else update it
                 asyncio.create_task(self.call_ping(maybe_node_to_ping[1]))  # [1]-th element is that node's peer_id
 
-        else:  # we sent outgoing request and peer did not respond
-            if node_id is not None and node_id in self.routing_table:
-                del self.routing_table[node_id]
+        elif node_id is not None and node_id in self.routing_table:
+            del self.routing_table[node_id]
 
     def _validate_record(
         self, key_bytes: bytes, subkey_bytes: bytes, value_bytes: bytes, expiration_time: float

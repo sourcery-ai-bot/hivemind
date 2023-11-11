@@ -80,11 +80,19 @@ class CheckpointHandler:
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
-                "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "params": [
+                    p
+                    for n, p in self.model.named_parameters()
+                    if all(nd not in n for nd in no_decay)
+                ],
                 "weight_decay": 0.01,
             },
             {
-                "params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)],
+                "params": [
+                    p
+                    for n, p in self.model.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
                 "weight_decay": 0.0,
             },
         ]
@@ -179,7 +187,7 @@ if __name__ == "__main__":
         checkpoint_handler = CheckpointHandler(monitor_args, optimizer_args, averager_args, dht)
 
     while True:
-        metrics_dict = dht.get(run_id + "_metrics", latest=True)
+        metrics_dict = dht.get(f"{run_id}_metrics", latest=True)
         if metrics_dict is not None:
             metrics_dict = metrics_dict.value
             metrics = [utils.LocalMetrics.parse_obj(metrics_dict[peer].value) for peer in metrics_dict]
@@ -218,8 +226,8 @@ if __name__ == "__main__":
                         }
                     )
 
-                if monitor_args.store_checkpoints:
-                    if checkpoint_handler.is_time_to_save_state(current_step):
+                if checkpoint_handler.is_time_to_save_state(current_step):
+                    if monitor_args.store_checkpoints:
                         checkpoint_handler.save_state(current_step)
                         if checkpoint_handler.is_time_to_upload():
                             checkpoint_handler.upload_checkpoint(current_loss)

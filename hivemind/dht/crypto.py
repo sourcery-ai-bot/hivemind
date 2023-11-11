@@ -83,9 +83,4 @@ class RSASignatureValidator(RecordValidatorBase):
         return 10
 
     def merge_with(self, other: RecordValidatorBase) -> bool:
-        if not isinstance(other, RSASignatureValidator):
-            return False
-
-        # Ignore another RSASignatureValidator instance (it doesn't make sense to have several
-        # instances of this class) and report successful merge
-        return True
+        return isinstance(other, RSASignatureValidator)

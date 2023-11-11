@@ -16,20 +16,24 @@ logger = get_logger(__name__)
 
 def sample_tensors(hid_size, num_layers):
     tensors = []
-    for i in range(num_layers):
-        tensors.append(torch.randn(hid_size, 3 * hid_size))
-        tensors.append(torch.randn(3 * hid_size))
-        tensors.append(torch.randn(3 * hid_size))
-        tensors.append(torch.randn(hid_size, hid_size))
-        tensors.append(torch.ones(hid_size))
-        tensors.append(torch.zeros(hid_size))
-        tensors.append(torch.randn(hid_size, 4 * hid_size))
-        tensors.append(torch.randn(4 * hid_size))
-        tensors.append(torch.ones(4 * hid_size))
-        tensors.append(torch.randn(2, hid_size, hid_size, 2))
-        tensors.append(torch.randn(hid_size))
-        tensors.append(torch.randn(hid_size))
-        tensors.append(torch.randn(hid_size))
+    for _ in range(num_layers):
+        tensors.extend(
+            (
+                torch.randn(hid_size, 3 * hid_size),
+                torch.randn(3 * hid_size),
+                torch.randn(3 * hid_size),
+                torch.randn(hid_size, hid_size),
+                torch.ones(hid_size),
+                torch.zeros(hid_size),
+                torch.randn(hid_size, 4 * hid_size),
+                torch.randn(4 * hid_size),
+                torch.ones(4 * hid_size),
+                torch.randn(2, hid_size, hid_size, 2),
+                torch.randn(hid_size),
+                torch.randn(hid_size),
+                torch.randn(hid_size),
+            )
+        )
     return tuple(tensors)
 
 

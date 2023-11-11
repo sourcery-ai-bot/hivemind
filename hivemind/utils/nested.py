@@ -10,11 +10,7 @@ def nested_compare(t, u):
             return False
         if len(t) != len(u):
             return False
-        for a, b in zip(t, u):
-            if not nested_compare(a, b):
-                return False
-        return True
-
+        return all(nested_compare(a, b) for a, b in zip(t, u))
     if isinstance(t, dict):
         if not isinstance(u, dict):
             return False
@@ -23,10 +19,7 @@ def nested_compare(t, u):
         for k in t:
             if not nested_compare(t[k], u[k]):
                 return False
-        return True
-
-    else:
-        return True
+    return True
 
 
 def nested_flatten(t):
@@ -71,9 +64,7 @@ def is_namedtuple(x):
     if len(b) != 1 or b[0] != tuple:
         return False
     f = getattr(t, "_fields", None)
-    if not isinstance(f, tuple):
-        return False
-    return all(type(n) == str for n in f)
+    return False if not isinstance(f, tuple) else all(type(n) == str for n in f)
 
 
 def nested_map(fn, *t):

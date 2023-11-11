@@ -105,12 +105,11 @@ class GradientAverager(DecentralizedAverager):
                 averaged_grads = tuple(
                     grad.detach().cpu().clone().share_memory_() for grad in self._grads_from_parameters()
                 )
-            else:
-                if any(
+            elif any(
                     param_grad.size() != grad.size()
                     for param_grad, grad in zip(self._grads_from_parameters(), averaged_grads)
                 ):
-                    raise ValueError("Averaged gradients don't have same shape as gradients from parameters")
+                raise ValueError("Averaged gradients don't have same shape as gradients from parameters")
         super().__init__(averaged_tensors=averaged_grads, dht=dht, prefix=prefix, client_mode=client_mode, **kwargs)
 
     def _grads_from_parameters(self) -> Iterator[torch.Tensor]:
@@ -140,9 +139,7 @@ class GradientAverager(DecentralizedAverager):
             self._anchor_batch_size = batch_size
         self.local_samples_accumulated += batch_size
         self.local_times_accumulated += 1
-        if self.reuse_grad_buffers:
-            pass  # user is responsible for accumulating gradients in .grad buffers
-        else:
+        if not self.reuse_grad_buffers:
             alpha = float(batch_size) / self._anchor_batch_size
             for grad_buf, grad_acc in zip(self._grads_from_parameters(), self._grad_accumulators()):
                 grad_acc.add_(grad_buf.to(grad_acc.device), alpha=alpha)

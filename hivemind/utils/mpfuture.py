@@ -200,7 +200,7 @@ class MPFuture(base.Future, Generic[ResultType]):
                     future.cancel()
                 else:
                     raise RuntimeError(f"Received unexpected update type {update_type}")
-            except (BrokenPipeError, EOFError, ConnectionError):
+            except (EOFError, ConnectionError):
                 logger.debug(f"Update pipe was was shut down unexpectedly (pid={pid})")
             except Exception as e:
                 logger.exception(f"Could not retrieve update: caught {repr(e)} (pid={pid})")
@@ -210,7 +210,7 @@ class MPFuture(base.Future, Generic[ResultType]):
         try:
             with MPFuture._update_lock if self._use_lock else nullcontext():
                 self._sender_pipe.send((self._uid, update_type, payload))
-        except (ConnectionError, BrokenPipeError, EOFError, OSError) as e:
+        except (ConnectionError, EOFError, OSError) as e:
             logger.debug(f"No updates were sent: pipe to origin process was broken ({e})", exc_info=True)
 
     def set_result(self, result: ResultType):

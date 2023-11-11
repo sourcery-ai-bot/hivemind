@@ -84,13 +84,13 @@ class PowerSGDGradientAverager(GradientAverager):
     ):
         self.rank = averager_rank
         self.parameters = tuple(parameters)
-        self._uncompressed_gradients_indexes = set(
+        self._uncompressed_gradients_indexes = {
             i
             for i, grad in enumerate(self._grads_from_parameters())
             if grad.ndim <= 1
-            or (1 - self.rank * sum(get_flatten_greedy_dims(grad)) / grad.numel()) < min_compression_ratio
-            # compute how much parameters are left after factorization
-        )
+            or (1 - self.rank * sum(get_flatten_greedy_dims(grad)) / grad.numel())
+            < min_compression_ratio
+        }
         self._ms = [
             torch.zeros_like(grad, device="cpu").share_memory_()
             for idx, grad in enumerate(self._grads_from_parameters())
@@ -151,8 +151,10 @@ class PowerSGDGradientAverager(GradientAverager):
                     m.add_(grad.to(m.device))
 
                 ps = [
-                    torch.zeros((get_flatten_greedy_dims(grad)[0], self.rank), device="cpu")
-                    for idx, grad in enumerate(averaged_grads_via_sgd)
+                    torch.zeros(
+                        (get_flatten_greedy_dims(grad)[0], self.rank), device="cpu"
+                    )
+                    for grad in averaged_grads_via_sgd
                 ]
                 for p, q, m in zip(ps, self._qs, self._ms):
                     # we use reshape for all matrixes because PowerSGD works only with 2d tensors
@@ -191,8 +193,8 @@ class PowerSGDGradientAverager(GradientAverager):
         """
         Get current gradient averager state and when requested by a newbie peer.
         """
-        with torch.no_grad(), self.lock_averaged_tensors:
-            grad_averager_buffers = [q for q in self._qs]
+        with (torch.no_grad(), self.lock_averaged_tensors):
+            grad_averager_buffers = list(self._qs)
             grad_averager_buffers_infos = [
                 CompressionInfo.from_tensor(buffer, key=f"buffer_q_{key}", role=TensorRole.GRADIENT)
                 for buffer, key in zip(grad_averager_buffers, enumerate(grad_averager_buffers))

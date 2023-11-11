@@ -191,13 +191,13 @@ class DHTNode:
                 kwargs.setdefault("dht_mode", "client")
             p2p = await P2P.create(**kwargs)
             self._should_shutdown_p2p = True
+        elif kwargs:
+            raise ValueError(
+                f"**kwargs in DHTNode.create() should be empty if hivemind.p2p.P2P instance is provided"
+                f"in the constructor. Got kwargs = {kwargs} instead. "
+                f"You may have a typo in a DHTNode.create() parameter name"
+            )
         else:
-            if kwargs:
-                raise ValueError(
-                    f"**kwargs in DHTNode.create() should be empty if hivemind.p2p.P2P instance is provided"
-                    f"in the constructor. Got kwargs = {kwargs} instead. "
-                    f"You may have a typo in a DHTNode.create() parameter name"
-                )
             self._should_shutdown_p2p = False
         self.p2p = p2p
 
@@ -222,10 +222,14 @@ class DHTNode:
             # stage 1: ping initial_peers, add each other to the routing table
             bootstrap_timeout = bootstrap_timeout if bootstrap_timeout is not None else wait_timeout
             start_time = get_dht_time()
-            ping_tasks = set(
-                asyncio.create_task(self.protocol.call_ping(peer, validate=ensure_bootstrap_success, strict=strict))
+            ping_tasks = {
+                asyncio.create_task(
+                    self.protocol.call_ping(
+                        peer, validate=ensure_bootstrap_success, strict=strict
+                    )
+                )
                 for peer in initial_peers
-            )
+            }
             finished_pings, unfinished_pings = await asyncio.wait(ping_tasks, return_when=asyncio.FIRST_COMPLETED)
 
             # stage 2: gather remaining peers (those who respond within bootstrap_timeout)
@@ -493,7 +497,9 @@ class DHTNode:
         )
         try:
             await asyncio.gather(store_task, *(evt.wait() for evt in store_finished_events.values()))
-            assert len(unfinished_key_ids) == 0, "Internal error: traverse_dht didn't finish search"
+            assert (
+                not unfinished_key_ids
+            ), "Internal error: traverse_dht didn't finish search"
             return {
                 (key, subkey) if subkey is not None else key: status or False
                 for (key, subkey), status in store_ok.items()
@@ -523,7 +529,7 @@ class DHTNode:
                 cached_value is not None and cached_value.expiration_time <= rejected_expiration
             ):  # cache would be rejected
                 self._schedule_for_refresh(key_id, refresh_time=get_dht_time())  # fetch new key in background (asap)
-        elif is_dictionary and key_id in self.protocol.cache:  # there can be other keys and we should update
+        elif key_id in self.protocol.cache:  # there can be other keys and we should update
             for subkey, stored_value_bytes, expiration_time, accepted in zip(
                 subkeys, binary_values, expirations, store_ok
             ):
@@ -668,14 +674,13 @@ class DHTNode:
 
         if return_futures:
             return {key_id: search_result.future for key_id, search_result in search_results.items()}
-        else:
-            try:
-                # note: this should be first time when we await something, there's no need to "try" the entire function
-                return {key_id: await search_result.future for key_id, search_result in search_results.items()}
-            except asyncio.CancelledError as e:  # terminate remaining tasks ASAP
-                for key_id, search_result in search_results.items():
-                    search_result.future.cancel()
-                raise e
+        try:
+            # note: this should be first time when we await something, there's no need to "try" the entire function
+            return {key_id: await search_result.future for key_id, search_result in search_results.items()}
+        except asyncio.CancelledError as e:  # terminate remaining tasks ASAP
+            for key_id, search_result in search_results.items():
+                search_result.future.cancel()
+            raise e
 
     def _reuse_finished_search_result(self, finished: _SearchState):
         pending_requests = self.pending_get_requests[finished.key_id]
@@ -768,30 +773,31 @@ class DHTNode:
         _is_refresh: bool = False,
     ):
         """after key_id is found, update cache according to caching policy. used internally in get and get_many"""
-        if search.found_something:
-            _, storage_expiration_time = self.protocol.storage.get(search.key_id) or (None, -float("inf"))
-            _, cache_expiration_time = self.protocol.cache.get(search.key_id) or (None, -float("inf"))
+        if not search.found_something:
+            return
+        _, storage_expiration_time = self.protocol.storage.get(search.key_id) or (None, -float("inf"))
+        _, cache_expiration_time = self.protocol.cache.get(search.key_id) or (None, -float("inf"))
 
-            if search.expiration_time > max(storage_expiration_time, cache_expiration_time):
-                if self.cache_locally or _is_refresh:
-                    self.protocol.cache.store(search.key_id, search.binary_value, search.expiration_time)
-                if self.cache_nearest:
-                    num_cached_nodes = 0
-                    for node_id in nearest_nodes:
-                        if node_id == search.source_node_id:
-                            continue
-                        asyncio.create_task(
-                            self.protocol.call_store(
-                                node_to_peer_id[node_id],
-                                [search.key_id],
-                                [search.binary_value],
-                                [search.expiration_time],
-                                in_cache=True,
-                            )
+        if search.expiration_time > max(storage_expiration_time, cache_expiration_time):
+            if self.cache_locally or _is_refresh:
+                self.protocol.cache.store(search.key_id, search.binary_value, search.expiration_time)
+            if self.cache_nearest:
+                num_cached_nodes = 0
+                for node_id in nearest_nodes:
+                    if node_id == search.source_node_id:
+                        continue
+                    asyncio.create_task(
+                        self.protocol.call_store(
+                            node_to_peer_id[node_id],
+                            [search.key_id],
+                            [search.binary_value],
+                            [search.expiration_time],
+                            in_cache=True,
                         )
-                        num_cached_nodes += 1
-                        if num_cached_nodes >= self.cache_nearest:
-                            break
+                    )
+                    num_cached_nodes += 1
+                    if num_cached_nodes >= self.cache_nearest:
+                        break
 
     async def _refresh_routing_table(self, *, period: Optional[float]) -> None:
         """Tries to find new nodes for buckets that were unused for more than self.staleness_timeout"""

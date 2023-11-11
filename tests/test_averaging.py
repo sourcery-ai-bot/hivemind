@@ -91,9 +91,7 @@ def _test_allreduce_once(n_clients, n_aux):
         for tensors, dht, mode in zip(peer_tensors, dht_instances, modes)
     ]
 
-    futures = []
-    for averager in averagers:
-        futures.append(averager.step(wait=False))
+    futures = [averager.step(wait=False) for averager in averagers]
     for future in futures:
         result = future.result()
         for averager in averagers:
@@ -154,9 +152,10 @@ def test_allreduce_weighted(n_client_mode_peers: int = 2):
         for i in range(len(tensors1))
     ]
 
-    futures = []
-    for averager, weight in zip(averagers, weights):
-        futures.append(averager.step(weight=weight, wait=False))
+    futures = [
+        averager.step(weight=weight, wait=False)
+        for averager, weight in zip(averagers, weights)
+    ]
     for future in futures:
         future.result()
 
@@ -233,10 +232,10 @@ def test_allgather(n_averagers=8, target_group_size=4):
         for dht in dht_instances
     ]
 
-    futures = []
-    for i, averager in enumerate(averagers):
-        futures.append(averager.step(wait=False, gather=dict(batch_size=123 + i, foo="bar")))
-
+    futures = [
+        averager.step(wait=False, gather=dict(batch_size=123 + i, foo="bar"))
+        for i, averager in enumerate(averagers)
+    ]
     reference_metadata = {
         averager.peer_id: dict(batch_size=123 + i, foo="bar") for i, averager in enumerate(averagers)
     }
@@ -282,7 +281,7 @@ def test_load_balancing():
     with pytest.raises(AssertionError):
         load_balance_peers(100, (0, 0, 0))
 
-    for i in range(10):
+    for _ in range(10):
         vector_size = np.random.randint(1, 1024**3)
         num_peers = np.random.randint(1, 256)
         scale = 1e-9 + np.random.rand() * 1e5
@@ -481,17 +480,15 @@ def test_averaging_trigger():
         for dht in launch_dht_instances(4)
     )
 
-    controls = []
-    for i, averager in enumerate(averagers):
-        controls.append(
-            averager.step(
-                wait=False,
-                scheduled_time=hivemind.get_dht_time() + 0.5,
-                weight=1.0,
-                require_trigger=i in (1, 2),
-            )
+    controls = [
+        averager.step(
+            wait=False,
+            scheduled_time=hivemind.get_dht_time() + 0.5,
+            weight=1.0,
+            require_trigger=i in (1, 2),
         )
-
+        for i, averager in enumerate(averagers)
+    ]
     time.sleep(0.6)
 
     c0, c1, c2, c3 = controls

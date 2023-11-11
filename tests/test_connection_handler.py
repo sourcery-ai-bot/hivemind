@@ -27,10 +27,9 @@ async def client_stub():
     handler = ConnectionHandler(handler_dht, module_backends, start=True)
 
     client_dht = DHT(start=True, client_mode=True, initial_peers=handler.dht.get_visible_maddrs())
-    client_stub = ConnectionHandler.get_stub(await client_dht.replicate_p2p(), handler.dht.peer_id)
-
-    yield client_stub
-
+    yield ConnectionHandler.get_stub(
+        await client_dht.replicate_p2p(), handler.dht.peer_id
+    )
     client_dht.shutdown()
     handler.shutdown()
     handler_dht.shutdown()

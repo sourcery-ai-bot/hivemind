@@ -26,13 +26,13 @@ def test_moe():
         f"ffn.{np.random.randint(0, 3)}.{np.random.randint(0, 3)}.{np.random.randint(0, 3)}" for _ in range(10)
     ]
     with background_server(
-        expert_uids=all_expert_uids, device="cpu", expert_cls="ffn", num_handlers=1, hidden_dim=16
-    ) as server_peer_info:
+            expert_uids=all_expert_uids, device="cpu", expert_cls="ffn", num_handlers=1, hidden_dim=16
+        ) as server_peer_info:
         dht = DHT(start=True, initial_peers=server_peer_info.addrs)
 
         dmoe = RemoteMixtureOfExperts(in_features=16, grid_size=(4, 4, 4), dht=dht, k_best=3, uid_prefix="ffn.")
 
-        for i in range(3):
+        for _ in range(3):
             out = dmoe(torch.randn(10, 16))
             out.sum().backward()
 
@@ -43,8 +43,8 @@ def test_no_experts():
         f"expert.{np.random.randint(0, 3)}.{np.random.randint(0, 3)}.{np.random.randint(0, 3)}" for _ in range(10)
     ]
     with background_server(
-        expert_uids=all_expert_uids, device="cpu", expert_cls="nop_delay", num_handlers=1, hidden_dim=16
-    ) as server_peer_info:
+            expert_uids=all_expert_uids, device="cpu", expert_cls="nop_delay", num_handlers=1, hidden_dim=16
+        ) as server_peer_info:
         dht = DHT(start=True, initial_peers=server_peer_info.addrs)
         dmoe = RemoteSwitchMixtureOfExperts(
             in_features=16,
@@ -56,7 +56,7 @@ def test_no_experts():
             allow_zero_outputs=True,
         )
 
-        for i in range(3):
+        for _ in range(3):
             out, balancing_loss = dmoe(torch.randn(10, 16))
             out.sum().backward()
 
@@ -73,13 +73,13 @@ def test_call_many(hidden_dim=16):
     atol = 1e-5
 
     with background_server(
-        num_experts=5,
-        device="cpu",
-        expert_cls="ffn",
-        num_handlers=1,
-        hidden_dim=hidden_dim,
-        optim_cls=None,
-    ) as server_peer_info:
+            num_experts=5,
+            device="cpu",
+            expert_cls="ffn",
+            num_handlers=1,
+            hidden_dim=hidden_dim,
+            optim_cls=None,
+        ) as server_peer_info:
         inputs = torch.randn(4, hidden_dim, requires_grad=True)
         inputs_clone = inputs.clone().detach().requires_grad_(True)
 
@@ -88,7 +88,7 @@ def test_call_many(hidden_dim=16):
             [ExpertInfo(uid=f"expert.{i}", peer_id=server_peer_info.peer_id) for i in range(5)],
             dht,
         )
-        e5 = RemoteExpert(ExpertInfo(f"thisshouldnotexist", server_peer_info), None)
+        e5 = RemoteExpert(ExpertInfo("thisshouldnotexist", server_peer_info), None)
 
         mask, expert_outputs = _RemoteCallMany.apply(
             DUMMY,
@@ -112,9 +112,9 @@ def test_call_many(hidden_dim=16):
         ), f"Incorrect mask, {mask}"
 
         reference_outputs = torch.zeros_like(expert_outputs)
-        reference_outputs[0, 0] = e0(inputs_clone[0:1])
-        reference_outputs[0, 1] = e1(inputs_clone[0:1])
-        reference_outputs[0, 2] = e2(inputs_clone[0:1])
+        reference_outputs[0, 0] = e0(inputs_clone[:1])
+        reference_outputs[0, 1] = e1(inputs_clone[:1])
+        reference_outputs[0, 2] = e2(inputs_clone[:1])
         reference_outputs[1, 0] = e2(inputs_clone[1:2])
         reference_outputs[1, 1] = e4(inputs_clone[1:2])
         reference_outputs[2, 0] = e1(inputs_clone[2:3])

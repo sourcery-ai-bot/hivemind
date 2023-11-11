@@ -154,7 +154,7 @@ class TrainingStateAverager(DecentralizedAverager):
             assert all(isinstance(p, torch.Tensor) for p in group["params"])
         parameters = tuple(chain(*(group["params"] for group in param_groups)))
         if parameter_names is None:
-            parameter_names = tuple(i for i in range(len(parameters)))
+            parameter_names = tuple(range(len(parameters)))
         parameter_names = tuple(nested_flatten(parameter_names))
         assert len(parameters) == len(parameter_names), f"Expected {len(parameters)} names, got {len(parameter_names)}"
         assert len(set(parameters)) == len(parameters), "Found duplicate parameters in param_groups"
@@ -294,22 +294,31 @@ class TrainingStateAverager(DecentralizedAverager):
 
     def _init_tensor_infos(self) -> Sequence[CompressionInfo]:
         """Get CompressionInfo for each state tensor, accounting for its role and specification"""
-        tensor_infos = []
-        for param, param_name in zip(self.main_parameters, self.parameter_names):
-            tensor_infos.append(CompressionInfo.from_tensor(param, key=param_name, role=TensorRole.PARAMETER))
+        tensor_infos = [
+            CompressionInfo.from_tensor(
+                param, key=param_name, role=TensorRole.PARAMETER
+            )
+            for param, param_name in zip(
+                self.main_parameters, self.parameter_names
+            )
+        ]
         for stats_name in self.opt_keys_for_averaging:
             opt_parameters = [param for group in self.optimizer.param_groups for param in group["params"]]
             assert len(opt_parameters) == len(self.parameter_names)
-            for param, param_name in zip(opt_parameters, self.parameter_names):
-                tensor_infos.append(
-                    CompressionInfo.from_tensor(
-                        self.optimizer.state[param][stats_name],
-                        key=(param_name, stats_name),
-                        role=TensorRole.OPTIMIZER,
-                    )
+            tensor_infos.extend(
+                CompressionInfo.from_tensor(
+                    self.optimizer.state[param][stats_name],
+                    key=(param_name, stats_name),
+                    role=TensorRole.OPTIMIZER,
                 )
-        for i, extra_tensor in enumerate(self.extra_tensors):
-            tensor_infos.append(CompressionInfo.from_tensor(extra_tensor, key=i, role=TensorRole.UNSPECIFIED))
+                for param, param_name in zip(opt_parameters, self.parameter_names)
+            )
+        tensor_infos.extend(
+            CompressionInfo.from_tensor(
+                extra_tensor, key=i, role=TensorRole.UNSPECIFIED
+            )
+            for i, extra_tensor in enumerate(self.extra_tensors)
+        )
         return tuple(tensor_infos)
 
     def schedule_step(self, scheduled_time: Optional[DHTExpiration] = None, **kwargs) -> StepControl:
@@ -514,7 +523,7 @@ class TrainingStateAverager(DecentralizedAverager):
             with self.lock_optimizer:
                 if optimizer_step:
                     with self.lock_averaged_tensors if self.reuse_tensors else nullcontext():
-                        logger.debug(f"Running optimizer step")
+                        logger.debug("Running optimizer step")
                         if grad_scaler is None:
                             self.optimizer.step()
                         else:
@@ -522,7 +531,7 @@ class TrainingStateAverager(DecentralizedAverager):
                                 assert grad_scaler.step(self.optimizer)
 
                 if zero_grad:
-                    logger.debug(f"Running zero grad")
+                    logger.debug("Running zero grad")
                     self.optimizer.zero_grad()
                     if self.offload_optimizer:
                         for parameter in self.main_parameters:
@@ -567,7 +576,7 @@ class TrainingStateAverager(DecentralizedAverager):
                 logger.error(f"Aborted {self.__class__.__name__}.step because wait_for_trigger raised exception")
             logger.exception(e)
             if averaging_control is not None and not averaging_control.done():
-                logger.error(f"Cancelled scheduled state averaging round")
+                logger.error("Cancelled scheduled state averaging round")
                 averaging_control.cancel()
             self.finished_optimizer_step.set()
             self.finished_averaging_round.set()

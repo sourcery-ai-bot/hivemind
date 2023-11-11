@@ -52,7 +52,7 @@ def get_model(training_args, config, tokenizer):
         logger.info(f"Loading model from {latest_checkpoint_dir}")
         model = AlbertForPreTraining.from_pretrained(latest_checkpoint_dir)
     else:
-        logger.info(f"Training from scratch")
+        logger.info("Training from scratch")
         model = AlbertForPreTraining(config)
         model.resize_token_embeddings(len(tokenizer))
 
@@ -130,10 +130,11 @@ class CollaborativeCallback(transformers.TrainerCallback):
                 self.steps = 0
                 if self.optimizer.is_synchronized_with_peers():
                     self.dht.store(
-                        key=self.optimizer.run_id + "_metrics",
+                        key=f"{self.optimizer.run_id}_metrics",
                         subkey=self.local_public_key,
                         value=statistics.dict(),
-                        expiration_time=get_dht_time() + self.statistics_expiration,
+                        expiration_time=get_dht_time()
+                        + self.statistics_expiration,
                         return_future=True,
                     )
 
@@ -143,10 +144,9 @@ class CollaborativeCallback(transformers.TrainerCallback):
 
     @torch.no_grad()
     def params_are_finite(self):
-        for param in self.model.parameters():
-            if not torch.all(torch.isfinite(param)):
-                return False
-        return True
+        return all(
+            torch.all(torch.isfinite(param)) for param in self.model.parameters()
+        )
 
     @torch.no_grad()
     def backup_state(self) -> bytes:
@@ -250,11 +250,19 @@ def main():
     no_decay = ["bias", "LayerNorm.weight"]
     params = [
         {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if all(nd not in n for nd in no_decay)
+            ],
             "weight_decay": training_args.weight_decay,
         },
         {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
             "weight_decay": 0.0,
         },
     ]

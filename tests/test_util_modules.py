@@ -384,7 +384,10 @@ def test_generic_data_classes():
 
     sorted_expirations = sorted([DHTExpiration(value) for value in range(1, 1000)])
     sorted_heap_entries = sorted([HeapEntry(DHTExpiration(value), key="any") for value in range(1, 1000)[::-1]])
-    assert all([entry.expiration_time == value for entry, value in zip(sorted_heap_entries, sorted_expirations)])
+    assert all(
+        entry.expiration_time == value
+        for entry, value in zip(sorted_heap_entries, sorted_expirations)
+    )
 
 
 @pytest.mark.asyncio

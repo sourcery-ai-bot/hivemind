@@ -88,9 +88,7 @@ class TimedStorage(Generic[KeyType, ValueType]):
     def get(self, key: KeyType) -> Optional[ValueWithExpiration[ValueType]]:
         """Get a value corresponding to a key if that (key, value) pair was previously stored under this key."""
         self._remove_outdated()
-        if key in self.data:
-            return self.data[key]
-        return None
+        return self.data[key] if key in self.data else None
 
     def items(self) -> Iterator[Tuple[KeyType, ValueWithExpiration[ValueType]]]:
         """Iterate over (key, value, expiration_time) tuples stored in this storage"""

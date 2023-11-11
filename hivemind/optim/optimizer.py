@@ -412,23 +412,21 @@ class Optimizer(torch.optim.Optimizer):
             self._maybe_schedule_gradient_averaging()
             self._maybe_schedule_state_averaging()
 
-        else:
-            # use_local_updates=True: update parameters on every step independently of other peers
-            if not self.auxiliary:
-                if grad_scaler is not None:
-                    with grad_scaler.running_global_step():
-                        assert grad_scaler.unscale_(self)
+        elif not self.auxiliary:
+            if grad_scaler is not None:
+                with grad_scaler.running_global_step():
+                    assert grad_scaler.unscale_(self)
 
-                new_samples_accumulated = self.tracker.local_progress.samples_accumulated + batch_size
-                self.tracker.report_local_progress(self.local_epoch, new_samples_accumulated)
-                self._maybe_schedule_state_averaging()
+            new_samples_accumulated = self.tracker.local_progress.samples_accumulated + batch_size
+            self.tracker.report_local_progress(self.local_epoch, new_samples_accumulated)
+            self._maybe_schedule_state_averaging()
 
-                self.state_averager.step(
-                    increment_epoch=False,
-                    optimizer_step=True,
-                    delay_optimizer_step=self.delay_optimizer_step,
-                    grad_scaler=grad_scaler,
-                )
+            self.state_averager.step(
+                increment_epoch=False,
+                optimizer_step=True,
+                delay_optimizer_step=self.delay_optimizer_step,
+                grad_scaler=grad_scaler,
+            )
 
         if self.tracker.ready_to_update_epoch:
             self._update_global_epoch(grad_scaler)
@@ -534,10 +532,16 @@ class Optimizer(torch.optim.Optimizer):
 
         if not began_averaging_gradients and self.scheduled_grads is not None and not self.scheduled_grads.done():
             if self.tracker.global_progress.num_peers > 1:
-                logger.log(self.status_loglevel, f"Tagging along for a pre-scheduled gradient averaging round")
+                logger.log(
+                    self.status_loglevel,
+                    "Tagging along for a pre-scheduled gradient averaging round",
+                )
                 self._tag_along_with_zero_weight(self.scheduled_grads)
             else:
-                logger.log(self.status_loglevel, f"Skipping pre-scheduled averaging round: there are no other peers")
+                logger.log(
+                    self.status_loglevel,
+                    "Skipping pre-scheduled averaging round: there are no other peers",
+                )
                 self._load_local_gradients_into_optimizer()
                 self.scheduled_grads.cancel()
             self.scheduled_grads = None
@@ -602,7 +606,7 @@ class Optimizer(torch.optim.Optimizer):
                 self._load_averaged_gradients_into_optimizer_()
                 averaged_gradients = True
             else:
-                logger.log(self.status_loglevel, f"Skipped averaging: there are no other peers")
+                logger.log(self.status_loglevel, "Skipped averaging: there are no other peers")
         except BaseException as e:
             logger.log(self.status_loglevel, f"Averaging gradients failed with {repr(e)}")
 
@@ -613,9 +617,7 @@ class Optimizer(torch.optim.Optimizer):
         """If required, load averaged gradients into optimizer; otherwise simply notify grad averager"""
         assert self.use_gradient_averaging
 
-        if self.offload_optimizer:
-            pass  # averaged gradients are already baked into optimizer, see _make_gradient_averager
-        else:
+        if not self.offload_optimizer:
             # copy averaged gradients into optimizer .grad buffers
             optimized_param_groups = self.state_averager.optimizer.param_groups
             optimized_parameters = [param for group in optimized_param_groups for param in group["params"]]
@@ -631,7 +633,7 @@ class Optimizer(torch.optim.Optimizer):
 
     def _load_local_gradients_into_optimizer(self):
         """Fallback to using local gradients in the optimizer (instead of averaged gradients)"""
-        logger.log(self.status_loglevel, f"Proceeding with local gradients")
+        logger.log(self.status_loglevel, "Proceeding with local gradients")
         self.grad_averager.load_accumulators_into_averager_()
         # note: we load gradients into grad_averager even though there is only one peer because of two reasons:
         # - if offload_optimizer, then we must load gradients onto the CPU gradient buffers used by the optimizer

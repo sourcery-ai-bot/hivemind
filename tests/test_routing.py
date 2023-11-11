@@ -9,7 +9,7 @@ from hivemind.utils.networking import LOCALHOST
 
 def test_ids_basic():
     # basic functionality tests
-    for i in range(100):
+    for _ in range(100):
         id1, id2 = DHTID.generate(), DHTID.generate()
         assert DHTID.MIN <= id1 < DHTID.MAX and DHTID.MIN <= id2 <= DHTID.MAX
         assert DHTID.xor_distance(id1, id1) == DHTID.xor_distance(id2, id2) == 0
@@ -18,8 +18,8 @@ def test_ids_basic():
 
 
 def test_ids_depth():
-    for i in range(100):
-        ids = [random.randint(0, 4096) for i in range(random.randint(1, 256))]
+    for _ in range(100):
+        ids = [random.randint(0, 4096) for _ in range(random.randint(1, 256))]
         ours = DHTID.longest_common_prefix_length(*map(DHTID, ids))
 
         ids_bitstr = ["".join(bin(bite)[2:].rjust(8, "0") for bite in uid.to_bytes(20, "big")) for uid in ids]
@@ -99,7 +99,7 @@ def test_routing_table_search():
         assert num_added + num_replacements == table_size
 
         # random queries
-        for i in range(1000):
+        for _ in range(1000):
             k = random.randint(1, 100)
             query_id = DHTID.generate()
             exclude = query_id if random.random() < 0.5 else None
@@ -109,7 +109,7 @@ def test_routing_table_search():
             assert all(our_peer_id == routing_table[our_node] for our_node, our_peer_id in zip(our_knn, our_peer_ids))
 
         # queries from table
-        for i in range(1000):
+        for _ in range(1000):
             k = random.randint(1, 100)
             query_id = random.choice(all_active_neighbors)
             our_knn, our_peer_ids = zip(*routing_table.get_nearest_neighbors(query_id, k=k, exclude=query_id))

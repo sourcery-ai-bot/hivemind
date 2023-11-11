@@ -69,13 +69,18 @@ async def _declare_experts(
     for uid in uids:
         data_to_store[uid, None] = peer_id_base58
         prefix = uid if uid.count(UID_DELIMITER) > 1 else f"{uid}{UID_DELIMITER}{FLAT_EXPERT}"
-        for i in range(prefix.count(UID_DELIMITER) - 1):
+        for _ in range(prefix.count(UID_DELIMITER) - 1):
             prefix, last_coord = split_uid(prefix)
             data_to_store[prefix, last_coord] = (uid, peer_id_base58)
 
     keys, maybe_subkeys, values = zip(*((key, subkey, value) for (key, subkey), value in data_to_store.items()))
-    store_ok = await node.store_many(keys, values, expiration_time, subkeys=maybe_subkeys, num_workers=num_workers)
-    return store_ok
+    return await node.store_many(
+        keys,
+        values,
+        expiration_time,
+        subkeys=maybe_subkeys,
+        num_workers=num_workers,
+    )
 
 
 def get_experts(

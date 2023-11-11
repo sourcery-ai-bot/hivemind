@@ -158,8 +158,6 @@ class AllReduceRunner(ServicerBase):
         try:
             if len(self.sender_peer_ids) == 0:
                 logger.debug(f"{self} - finished all-reduce early: all peers are auxiliaries ({self.modes})")
-                self.finalize()
-
             elif self.peer_id in self.sender_peer_ids:
                 for peer_id, parts in zip(self.ordered_peer_ids, self.tensor_part_container.num_parts_by_peer):
                     if parts != 0:
@@ -168,11 +166,9 @@ class AllReduceRunner(ServicerBase):
                 async for averaged_tensor_delta in self.tensor_part_container.iterate_output_tensors():
                     yield averaged_tensor_delta  # delta = averaged_tensor - original_tensor
 
-                self.finalize()
-
             else:  # auxiliary peer
                 await self.tensor_part_reducer.finished.wait()
-                self.finalize()
+            self.finalize()
 
         except BaseException as e:
             self.finalize(exception=e)

@@ -35,8 +35,7 @@ def example_experts():
         outputs_schema=BatchTensorDescriptor(1),
         max_batch_size=1,
     )
-    experts = {EXPERT_NAME: expert_backend}
-    yield experts
+    yield {EXPERT_NAME: expert_backend}
 
 
 @pytest.mark.forked

@@ -99,11 +99,7 @@ async def store_and_get_task(
             if result != None:
                 attendees, expiration = result
                 if len(attendees.keys()) == successful_stores_per_iter:
-                    get_ok = True
-                    for key in attendees:
-                        if attendees[key][0] != store_values[key]:
-                            get_ok = False
-                            break
+                    get_ok = all(attendees[key][0] == store_values[key] for key in attendees)
                     successful_gets_per_iter += get_ok
 
         successful_gets.append(successful_gets_per_iter)
@@ -133,7 +129,13 @@ async def benchmark_dht(
     peers = []
     for _ in trange(num_peers):
         neighbors = sum(
-            [peer.get_visible_maddrs() for peer in random.sample(peers, min(initial_peers, len(peers)))], []
+            (
+                peer.get_visible_maddrs()
+                for peer in random.sample(
+                    peers, min(initial_peers, len(peers))
+                )
+            ),
+            [],
         )
         peer = hivemind.DHT(initial_peers=neighbors, start=True, wait_timeout=wait_timeout)
         peers.append(peer)
@@ -167,11 +169,11 @@ async def benchmark_dht(
 
     store_and_get_result = await asyncio.gather(*task_list)
     benchmark_total_time = time.perf_counter() - benchmark_started
-    total_store_times = []
     total_get_times = []
     total_successful_stores = []
     total_successful_gets = []
     total_stores = total_gets = 0
+    total_store_times = []
     for result in store_and_get_result:
         store_times, get_times, successful_stores, successful_gets, stores, gets = result
 
@@ -195,12 +197,10 @@ async def benchmark_dht(
     logger.info(f"Average get time per worker: {sum(total_get_times) / num_threads:.3f} sec.")
     logger.info(f"Total benchmark time: {benchmark_total_time:.5f} sec.")
     logger.info(
-        "Store success rate: "
-        + f"{sum(total_successful_stores) / total_stores * 100:.1f}% ({sum(total_successful_stores)}/{total_stores})"
+        f"Store success rate: {sum(total_successful_stores) / total_stores * 100:.1f}% ({sum(total_successful_stores)}/{total_stores})"
     )
     logger.info(
-        "Get success rate: "
-        + f"{sum(total_successful_gets) / total_gets * 100:.1f}% ({sum(total_successful_gets)}/{total_gets})"
+        f"Get success rate: {sum(total_successful_gets) / total_gets * 100:.1f}% ({sum(total_successful_gets)}/{total_gets})"
     )
     logger.info(f"Node survival rate: {len(alive_peers) / len(peers) * 100:.3f}%")
 

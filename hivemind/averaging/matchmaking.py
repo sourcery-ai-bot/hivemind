@@ -255,9 +255,8 @@ class Matchmaking:
         """Returns the averager's current expiration time, which is used to send join requests to leaders"""
         if isfinite(self.potential_leaders.declared_expiration_time):
             return self.potential_leaders.declared_expiration_time
-        else:
-            scheduled_time = max(self.step_control.scheduled_time, get_dht_time() + self.min_matchmaking_time)
-            return min(scheduled_time, self.potential_leaders.search_end_time)
+        scheduled_time = max(self.step_control.scheduled_time, get_dht_time() + self.min_matchmaking_time)
+        return min(scheduled_time, self.potential_leaders.search_end_time)
 
     async def rpc_join_group(
         self, request: averaging_pb2.JoinRequest, context: P2PContext
@@ -309,11 +308,9 @@ class Matchmaking:
                     yield averaging_pb2.MessageFromLeader(
                         code=averaging_pb2.GROUP_DISBANDED, suggested_leader=self.current_leader.to_bytes()
                     )
-                    return
                 else:
                     yield averaging_pb2.MessageFromLeader(code=averaging_pb2.GROUP_DISBANDED)
-                    return
-
+                return
             group_info = self.assembled_group.result()
             yield averaging_pb2.MessageFromLeader(
                 code=averaging_pb2.BEGIN_ALLREDUCE,
@@ -483,12 +480,11 @@ class PotentialLeaders:
                     {self.update_finished.wait(), self.declared_expiration.wait()}, return_when=asyncio.FIRST_COMPLETED
                 )
                 self.declared_expiration.clear()
-                if self.update_finished.is_set():
-                    self.update_finished.clear()
-                    continue
-                else:
+                if not self.update_finished.is_set():
                     raise asyncio.TimeoutError("pop_next_leader was invalidated: re-declared averager in background")
 
+                self.update_finished.clear()
+                continue
             del self.leader_queue[maybe_next_leader]
             self.past_attempts.add((maybe_next_leader, entry.expiration_time))
             return maybe_next_leader

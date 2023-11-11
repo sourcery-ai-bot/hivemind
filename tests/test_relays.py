@@ -7,7 +7,7 @@ import hivemind
 
 
 async def ping_to_client(dht, node, peer_id: str):
-    return await node.protocol.call_ping(hivemind.PeerID.from_base58(str(peer_id)))
+    return await node.protocol.call_ping(hivemind.PeerID.from_base58(peer_id))
 
 
 @pytest.mark.forked
@@ -52,8 +52,9 @@ def test_autorelay(use_auto_relay: bool, use_relay: bool):
 
     time_start = time.perf_counter()
     while time.perf_counter() - time_start < 30:
-        reached_ip = dht_second_peer.run_coroutine(partial(ping_to_client, peer_id=dht_third_peer.peer_id))
-        if reached_ip:
+        if reached_ip := dht_second_peer.run_coroutine(
+            partial(ping_to_client, peer_id=dht_third_peer.peer_id)
+        ):
             assert use_relay
             break
         time.sleep(2)

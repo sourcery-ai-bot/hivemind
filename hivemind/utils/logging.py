@@ -191,7 +191,7 @@ def use_hivemind_log_handler(where: Union[HandlerMode, str]) -> None:
 
 def golog_level_to_python(level: str) -> int:
     level = level.upper()
-    if level in ["DPANIC", "PANIC", "FATAL"]:
+    if level in {"DPANIC", "PANIC", "FATAL"}:
         return logging.CRITICAL
 
     level = logging.getLevelName(level)
@@ -206,6 +206,4 @@ def python_level_to_golog(level: str) -> str:
 
     if level == "CRITICAL":
         return "FATAL"
-    if level == "WARNING":
-        return "WARN"
-    return level
+    return "WARN" if level == "WARNING" else level

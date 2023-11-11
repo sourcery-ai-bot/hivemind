@@ -33,7 +33,7 @@ if __name__ == "__main__":
         total_time = 0
         compression_error = 0
         total_size = 0
-        for i in range(args.num_iters):
+        for _ in range(args.num_iters):
             iter_time, iter_distortion, size = benchmark_compression(X, compression_type)
             total_time += iter_time
             compression_error += iter_distortion

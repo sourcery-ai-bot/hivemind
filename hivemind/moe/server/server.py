@@ -299,7 +299,7 @@ class Server(threading.Thread):
 
         self.dht.shutdown()
 
-        logger.debug(f"Shutting down runtime")
+        logger.debug("Shutting down runtime")
         self.runtime.shutdown()
 
         logger.info("Server shutdown successfully")
@@ -315,11 +315,10 @@ def background_server(*args, shutdown_timeout=5, **kwargs) -> PeerInfo:
         # once the server is ready, runner will send us
         # either (False, exception) or (True, PeerInfo(dht_peer_id, dht_maddrs))
         start_ok, data = pipe.recv()
-        if start_ok:
-            yield data
-            pipe.send("SHUTDOWN")  # on exit from context, send shutdown signal
-        else:
+        if not start_ok:
             raise RuntimeError(f"Server failed to start: {data}")
+        yield data
+        pipe.send("SHUTDOWN")  # on exit from context, send shutdown signal
     finally:
         runner.join(timeout=shutdown_timeout)
         if runner.is_alive():
@@ -362,7 +361,7 @@ def _generate_uids(
      a small chance of sampling duplicate expert uids.
     """
     remaining_attempts = attempts_per_expert * num_experts
-    found_uids, attempted_uids = list(), set()
+    found_uids, attempted_uids = [], set()
 
     def _generate_uid():
         if expert_pattern is None:

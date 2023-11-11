@@ -253,21 +253,19 @@ class _RemoteCallMany(torch.autograd.Function):
             outputs_schema,
         )
 
-        # assemble responses
-        if len(responded_inds) > 0 or allow_zero_outputs:
-            batch_inds, expert_inds = map(
-                lambda x: torch.as_tensor(x, device=flat_inputs[0].device, dtype=torch.long),
-                list(zip(*responded_inds)) or ([], []),
-            )
-
-            alive_flat_outputs_stacked = (torch.cat(outputs) for outputs in zip(*alive_flat_outputs))
-            # torch tensors, i-th tensor is of shape [num_responded, *expert_outputs[i].shape]
-
-            for output, response_stacked in zip(outputs, alive_flat_outputs_stacked):
-                output[batch_inds, expert_inds] = response_stacked.to(output.device)
-
-        else:
+        if len(responded_inds) <= 0 and not allow_zero_outputs:
             raise RuntimeError("Forward pass: 0 experts responded within timeout and allow_zero_outputs is False")
+
+        batch_inds, expert_inds = map(
+            lambda x: torch.as_tensor(x, device=flat_inputs[0].device, dtype=torch.long),
+            list(zip(*responded_inds)) or ([], []),
+        )
+
+        alive_flat_outputs_stacked = (torch.cat(outputs) for outputs in zip(*alive_flat_outputs))
+        # torch tensors, i-th tensor is of shape [num_responded, *expert_outputs[i].shape]
+
+        for output, response_stacked in zip(outputs, alive_flat_outputs_stacked):
+            output[batch_inds, expert_inds] = response_stacked.to(output.device)
 
         mask = torch.zeros([num_samples, max_experts], dtype=torch.bool, device=flat_inputs[0].device)
         mask[batch_inds, expert_inds] = True

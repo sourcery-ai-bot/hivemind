@@ -64,17 +64,23 @@ def test_beam_search(
         declare_experts(dht, real_experts[batch_start : batch_start + batch_size], get_dht_time() + 30)
 
     neighbors = sum(
-        [peer.get_visible_maddrs() for peer in random.sample(dht_instances, min(3, len(dht_instances)))], []
+        (
+            peer.get_visible_maddrs()
+            for peer in random.sample(
+                dht_instances, min(3, len(dht_instances))
+            )
+        ),
+        [],
     )
     you = hivemind.DHT(start=True, initial_peers=neighbors, parallel_rpc=parallel_rpc)
     beam_search = MoEBeamSearcher(you, "expert.", grid_dims)
 
-    for i in range(10):
+    for _ in range(10):
         topk_experts = beam_search.find_best_experts([np.random.randn(dim) for dim in grid_dims], beam_size)
         assert all(isinstance(e, hivemind.RemoteExpert) for e in topk_experts)
         assert len(topk_experts) == beam_size
 
-    for i in range(10):
+    for _ in range(10):
         batch_experts = beam_search.batch_find_best_experts(
             [np.random.randn(batch_size, dim) for dim in grid_dims], beam_size=beam_size
         )
@@ -138,9 +144,15 @@ def test_uid_patterns():
         "block2.1.23",
         "LAYER.1.0.1",
     ]
-    valid_prefixes = ["expert.", "e.1.", "e.2.", "e.1.2.3.", "ololo.123.456.789.10."]
-    valid_prefixes.extend([f"{uid}." for uid in valid_experts])
-    valid_prefixes.extend([split_uid(uid)[0] for uid in valid_experts])
+    valid_prefixes = [
+        "expert.",
+        "e.1.",
+        "e.2.",
+        "e.1.2.3.",
+        "ololo.123.456.789.10.",
+        *[f"{uid}." for uid in valid_experts],
+        *[split_uid(uid)[0] for uid in valid_experts],
+    ]
     for uid in valid_experts:
         assert is_valid_uid(uid), f"UID {uid} is valid, but was perceived as invalid"
     for pfx in valid_prefixes:
@@ -196,7 +208,13 @@ async def test_negative_caching(n_peers=10):
     writer_peer = random.choice(peers)
     assert all(declare_experts(writer_peer, ["ffn.1.2.3", "ffn.3.4.5"], get_dht_time() + 30).values())
 
-    neighbors = sum([peer.get_visible_maddrs() for peer in random.sample(peers, min(3, len(peers)))], [])
+    neighbors = sum(
+        (
+            peer.get_visible_maddrs()
+            for peer in random.sample(peers, min(3, len(peers)))
+        ),
+        [],
+    )
     neg_caching_peer = hivemind.DHT(initial_peers=neighbors, start=True, **dht_kwargs)
     beam_search = MoEBeamSearcher(neg_caching_peer, uid_prefix="ffn.", grid_size=(10, 10, 10), negative_caching=True)
     # get prefixes by the peer with negative caching. Cache "no data" entries for ffn.0.*, ffn.2.*, ffn.4.*, ffn.5.*

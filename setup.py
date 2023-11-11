@@ -42,8 +42,7 @@ def proto_compile(output_path):
         f"--python_out={output_path}",
     ] + glob.glob("hivemind/proto/*.proto")
 
-    code = grpc_tools.protoc.main(cli_args)
-    if code:  # hint: if you get this error in jupyter, run in console for richer error message
+    if code := grpc_tools.protoc.main(cli_args):
         raise ValueError(f"{' '.join(cli_args)} finished with exit code {code}")
     # Make pb2 imports in generated scripts relative
     for script in glob.iglob(f"{output_path}/*.py"):

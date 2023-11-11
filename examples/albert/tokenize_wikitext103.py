@@ -36,15 +36,8 @@ def create_instances_from_document(tokenizer, document, max_seq_length):
                 # (first) sentence.
                 a_end = random.randint(1, len(current_chunk) - 1)
 
-                tokens_a = []
-                for j in range(a_end):
-                    tokens_a.append(current_chunk[j])
-
-                tokens_b = []
-
-                for j in range(a_end, len(current_chunk)):
-                    tokens_b.append(current_chunk[j])
-
+                tokens_a = [current_chunk[j] for j in range(a_end)]
+                tokens_b = [current_chunk[j] for j in range(a_end, len(current_chunk))]
                 if random.random() < 0.5:
                     # Random next
                     is_random_next = True
@@ -54,8 +47,8 @@ def create_instances_from_document(tokenizer, document, max_seq_length):
                     # Actual next
                     is_random_next = False
 
-                assert len(tokens_a) >= 1
-                assert len(tokens_b) >= 1
+                assert tokens_a
+                assert tokens_b
 
                 instance = tokenizer(
                     " ".join(tokens_a),

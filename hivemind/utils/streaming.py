@@ -40,7 +40,6 @@ def combine_from_streaming(stream: Iterable[runtime_pb2.Tensor]) -> runtime_pb2.
     serialized_tensor = runtime_pb2.Tensor()
     serialized_tensor.CopyFrom(first_chunk)
     buffer_chunks = [first_chunk.buffer]
-    for tensor_part in stream:
-        buffer_chunks.append(tensor_part.buffer)
+    buffer_chunks.extend(tensor_part.buffer for tensor_part in stream)
     serialized_tensor.buffer = b"".join(buffer_chunks)
     return serialized_tensor

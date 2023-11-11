@@ -19,14 +19,16 @@ def load_balance_peers(vector_size, bandwidths: Sequence[Optional[float]], min_s
     :param min_size: peers that can aggregate less than this many elements will be assigned nothing
     :returns: an integer array where i-th element is the number of weights assigned to i-th peer
     """
-    specified_bandwidth = [item for item in bandwidths if item is not None and item > 0]
-
-    if specified_bandwidth:
+    if specified_bandwidth := [
+        item for item in bandwidths if item is not None and item > 0
+    ]:
         default_bandwidth = np.mean(specified_bandwidth)
         bandwidths = [item if item is not None else default_bandwidth for item in bandwidths]
         scores = optimize_parts_lp(vector_size, np.asarray(bandwidths), min_size)
     else:
-        assert not all(item == 0 for item in bandwidths), "Must have at least one nonzero bandwidth"
+        assert any(
+            item != 0 for item in bandwidths
+        ), "Must have at least one nonzero bandwidth"
         scores = np.asarray([1.0 if item is None else 0.0 for item in bandwidths])
 
     # TODO(jheuristic) we no longer need hagenbach-bishoff with new AllReduceRunner

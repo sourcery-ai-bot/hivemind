@@ -41,7 +41,7 @@ def test_cli_run_server_identity_path():
         addrs_pattern_result = re.search(pattern, line)
         assert addrs_pattern_result is not None, line
         addrs_1 = set(addrs_pattern_result.group(1).split(", "))
-        ids_1 = set(a.split("/")[-1] for a in addrs_1)
+        ids_1 = {a.split("/")[-1] for a in addrs_1}
 
         assert len(ids_1) == 1
 
@@ -56,7 +56,7 @@ def test_cli_run_server_identity_path():
         addrs_pattern_result = re.search(pattern, line)
         assert addrs_pattern_result is not None, line
         addrs_2 = set(addrs_pattern_result.group(1).split(", "))
-        ids_2 = set(a.split("/")[-1] for a in addrs_2)
+        ids_2 = {a.split("/")[-1] for a in addrs_2}
 
         assert len(ids_2) == 1
 
@@ -71,7 +71,7 @@ def test_cli_run_server_identity_path():
         addrs_pattern_result = re.search(pattern, line)
         assert addrs_pattern_result is not None, line
         addrs_3 = set(addrs_pattern_result.group(1).split(", "))
-        ids_3 = set(a.split("/")[-1] for a in addrs_3)
+        ids_3 = {a.split("/")[-1] for a in addrs_3}
 
         assert len(ids_3) == 1
 

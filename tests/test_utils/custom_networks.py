@@ -38,5 +38,4 @@ class MultiheadNetwork(nn.Module):
         self.layer3 = nn.Linear(3 * hidden_dim, num_classes)
 
     def forward(self, x1, x2, x3):
-        x = self.layer1(x1) + self.layer2(x2) + self.layer3(x3)
-        return x
+        return self.layer1(x1) + self.layer2(x2) + self.layer3(x3)

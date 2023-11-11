@@ -96,8 +96,9 @@ class TensorPartContainer:
         """get non-serialized tensor parts for a peer at a given index"""
         assert not self._inputs_consumed_by_peer[peer_index], "input parts of a given peer are already deallocated."
         self._inputs_consumed_by_peer[peer_index] = True
-        input_parts = tuple(part for part, compression in self._input_parts_by_peer[peer_index])
-        return input_parts
+        return tuple(
+            part for part, compression in self._input_parts_by_peer[peer_index]
+        )
 
     @torch.no_grad()
     async def iterate_input_parts_for(self, peer_index: int) -> AsyncIterator[runtime_pb2.Tensor]:
@@ -163,16 +164,17 @@ class TensorPartContainer:
 
     def finalize(self):
         """terminate all iterators, delete intermediate data"""
-        if not self.finished.is_set():
-            for peer_index in range(self.group_size):
-                self._inputs_consumed_by_peer[peer_index] = True
-                self._output_part_available[peer_index].set()
-                self._input_parts_by_peer[peer_index].clear()
-                self._output_parts_by_peer[peer_index].clear()
-            if self.failed_size != 0:
-                logger.warning(f"Averaging: received {(1. - self.failed_size / self.total_size) * 100:.1f}% results")
-            self._outputs_consumed = True
-            self.finished.set()
+        if self.finished.is_set():
+            return
+        for peer_index in range(self.group_size):
+            self._inputs_consumed_by_peer[peer_index] = True
+            self._output_part_available[peer_index].set()
+            self._input_parts_by_peer[peer_index].clear()
+            self._output_parts_by_peer[peer_index].clear()
+        if self.failed_size != 0:
+            logger.warning(f"Averaging: received {(1. - self.failed_size / self.total_size) * 100:.1f}% results")
+        self._outputs_consumed = True
+        self.finished.set()
 
 
 class TensorPartReducer:
@@ -257,17 +259,18 @@ class TensorPartReducer:
             self.reset_accumulators()
 
     def finalize(self):
-        if not self.finished.is_set():
-            if hasattr(self, "current_part_future"):
-                self.current_part_future.cancel()
-                del self.accumulator
-            self.finished.set()
+        if self.finished.is_set():
+            return
+        if hasattr(self, "current_part_future"):
+            self.current_part_future.cancel()
+            del self.accumulator
+        self.finished.set()
 
-            if self.num_parts != 0 and self.num_senders != 0:
-                parts_expected = self.num_parts * self.num_senders
-                parts_received = sum(self.num_parts_received)
-                if parts_expected != parts_received:
-                    logger.warning(f"Reducer: received {parts_received / parts_expected * 100:.1f}% of input tensors")
+        if self.num_parts != 0 and self.num_senders != 0:
+            parts_expected = self.num_parts * self.num_senders
+            parts_received = sum(self.num_parts_received)
+            if parts_expected != parts_received:
+                logger.warning(f"Reducer: received {parts_received / parts_expected * 100:.1f}% of input tensors")
 
     def __del__(self):
         self.finalize()

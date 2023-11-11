@@ -96,7 +96,9 @@ class StepControl(MPFuture):
         assert weight >= 0 and np.isfinite(weight)
         if self.began_allreduce:
             logger.warning("Changing weights has no effect after all-reduce has already started")
-        struct.pack_into("d", self._shared_buffer[StepControl._WEIGHT].numpy().data, 0, float(weight))
+        struct.pack_into(
+            "d", self._shared_buffer[StepControl._WEIGHT].numpy().data, 0, weight
+        )
 
     @property
     def stage(self) -> AveragingStage:

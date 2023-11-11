@@ -40,7 +40,7 @@ MAX_UNARY_PAYLOAD_SIZE = DEFAULT_MAX_MSG_SIZE // 2
 
 
 def parse_conn_protocol(maddr: Multiaddr) -> int:
-    proto_codes = set(proto.code for proto in maddr.protocols())
+    proto_codes = {proto.code for proto in maddr.protocols()}
     proto_cand = proto_codes.intersection(SUPPORT_CONN_PROTOCOLS)
     if len(proto_cand) != 1:
         raise ValueError(
@@ -354,8 +354,7 @@ class ControlClient:
         writer.close()
         raise_if_failed(resp)
 
-        peers = tuple(PeerInfo.from_protobuf(pinfo) for pinfo in resp.peers)
-        return peers
+        return tuple(PeerInfo.from_protobuf(pinfo) for pinfo in resp.peers)
 
     async def disconnect(self, peer_id: PeerID) -> None:
         disconnect_req = p2pd_pb.DisconnectRequest(peer=peer_id.to_bytes())

@@ -228,10 +228,9 @@ class DecentralizedAverager(mp.Process, ServicerBase):
     def allow_state_sharing(self, value: bool):
         if value and self.client_mode:
             raise ValueError("Cannot allow state sharing: averager in client mode cannot share its state")
-        else:
-            old_value, self._allow_state_sharing.value = self._allow_state_sharing.value, value
-            if value != old_value:
-                self._outer_pipe.send(("_trigger_declare_load_state", [], {}))
+        old_value, self._allow_state_sharing.value = self._allow_state_sharing.value, value
+        if value != old_value:
+            self._outer_pipe.send(("_trigger_declare_load_state", [], {}))
 
     @property
     def state_sharing_priority(self) -> float:
@@ -242,10 +241,9 @@ class DecentralizedAverager(mp.Process, ServicerBase):
     def state_sharing_priority(self, value: float):
         if value and self.client_mode:
             raise ValueError("State sharing priority is unused: averager in client mode cannot share its state")
-        else:
-            old_value, self._state_sharing_priority.value = self._state_sharing_priority.value, value
-            if self.allow_state_sharing and value != old_value:
-                self._outer_pipe.send(("_trigger_declare_load_state", [], {}))
+        old_value, self._state_sharing_priority.value = self._state_sharing_priority.value, value
+        if self.allow_state_sharing and value != old_value:
+            self._outer_pipe.send(("_trigger_declare_load_state", [], {}))
 
     async def _trigger_declare_load_state(self):
         # note: previously tried to set mp.Event instead of this. Awaiting it in executor caused degradation in py39
@@ -306,10 +304,8 @@ class DecentralizedAverager(mp.Process, ServicerBase):
             self._ready.set_result(None)
 
             while True:
-                try:
+                with contextlib.suppress(asyncio.TimeoutError):
                     await asyncio.wait_for(pipe_semaphore.acquire(), timeout=self.request_timeout)
-                except asyncio.TimeoutError:
-                    pass
                 if not self._inner_pipe.poll():
                     continue
                 try:
@@ -619,10 +615,8 @@ class DecentralizedAverager(mp.Process, ServicerBase):
 
             # report again either in state_declare_period or after the field was changed by the user
             self._state_updated.clear()
-            try:
+            with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(self._state_updated.wait(), timeout=max(0.0, expiration_time - get_dht_time()))
-            except asyncio.TimeoutError:
-                pass
 
     async def rpc_download_state(
         self, _request: averaging_pb2.DownloadRequest, _context: P2PContext
@@ -692,7 +686,7 @@ class DecentralizedAverager(mp.Process, ServicerBase):
                 if isinstance(info, ValueWithExpiration) and isinstance(info.value, (float, int))
             }
 
-            if not isinstance(peer_priority, dict) or len(peer_priority) == 0:
+            if not isinstance(peer_priority, dict) or not peer_priority:
                 logger.info(f"Averager could not load state from peers: peer dict empty or corrupted {peer_priority}")
                 future.set_result(None)
                 return

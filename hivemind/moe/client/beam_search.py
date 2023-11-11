@@ -146,8 +146,9 @@ class MoEBeamSearcher:
             try:
                 maybe_prefix_data = await pending_task
                 if maybe_prefix_data is not None and isinstance(maybe_prefix_data.value, dict):
-                    successors = MoEBeamSearcher._select_valid_entries(maybe_prefix_data)
-                    if successors:
+                    if successors := MoEBeamSearcher._select_valid_entries(
+                        maybe_prefix_data
+                    ):
                         beam.append((scores[pending_best_index], pending_best_prefix, successors))
                 elif maybe_prefix_data is None and negative_caching:
                     logger.debug(f"DHT negative caching: storing a 'no prefix' entry for {pending_best_prefix}")
@@ -315,7 +316,9 @@ class MoEBeamSearcher:
             )
             beam = [(score, prefix, successors[prefix]) for score, prefix in best_active_pairs if successors[prefix]]
             if not beam:
-                logger.warning(f"Beam search had to terminate prematurely because of empty beam (dim 0)")
+                logger.warning(
+                    "Beam search had to terminate prematurely because of empty beam (dim 0)"
+                )
                 break
 
         # add best experts from the final beam
